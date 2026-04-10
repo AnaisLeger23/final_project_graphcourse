@@ -1,0 +1,521 @@
+---
+title: "Suicides, alcohol consumption and unemployment rate in the world, 2008"
+format: 
+  dashboard:
+    embed-resources: true
+theme: lux
+---
+
+
+```{r}
+# Load packages 
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(tidyverse, here, bslib, bsicons, shiny, 
+               rgeoboundaries, plotly, htmltools, reactable, 
+               visdat, rnaturalearth, sf, paletteer,
+               ggthemes)
+
+
+alcohol_data <- read.csv(here("data/alcohol_consumption_per_adult_15plus_litres.csv"))
+suicides_data <- read.csv(here("data/suicide_per_100000_people.csv"))
+work_data <- read.csv(here("data/working_hours_per_week.csv"))
+unemployment_data <- read.csv(here("data/aged_15plus_unemployment_rate_percent.csv"))
+
+
+
+```
+
+```{r}
+## Clean the health data imported from gapminder
+
+select_years <- function(data) {
+  data <- data %>% 
+    select(geo, name, X2005, X2008)
+  #return(data)
+}
+
+work_data_clean <- select_years(work_data) %>% 
+  rename(work_2005 = X2005,
+         work_2008 = X2008)
+suicides_data_clean <- select_years(suicides_data) %>% 
+  rename(suicides_2005 = X2005,
+         suicides_2008 = X2008)
+alcohol_data_clean <- select_years(alcohol_data) %>% 
+  rename(alcohol_2005 = X2005,
+         alcohol_2008 = X2008)
+unemployment_data_clean <- select_years(unemployment_data) %>% 
+  rename(unemployment_2005 = X2005,
+         unemployment_2008 = X2008)
+
+
+# sum(!is.na(unemployment_data_clean$unemployment_2008))
+
+# setdiff(alcohol_data_clean$geo, suicides_data_clean$geo)
+# setdiff(poisonings_data_clean$geo, alcohol_data_clean$geo)
+
+data_all_cases <- alcohol_data_clean %>% 
+  left_join(work_data_clean, by=c("geo", "name")) %>% 
+  left_join(unemployment_data_clean, by=c("geo", "name")) %>% 
+  inner_join(suicides_data_clean, by=c("geo", "name")) %>% 
+  mutate(geo = toupper(geo))
+
+# vis_dat(data_all_cases)
+
+
+# get the sf data for world maps
+countries <- ne_countries()
+
+#setdiff(data_all_cases$geo, countries$adm0_iso)
+
+dashboard_data <- countries %>% 
+  inner_join(data_all_cases, by=c("adm0_iso" = "geo"))
+
+
+# Keep only in data_all_cases, the countries that have geo data
+all_countries_with_data <- unique(dashboard_data$adm0_iso)
+
+data_all_cases <- data_all_cases %>% 
+  filter(geo %in% all_countries_with_data)
+
+
+```
+
+
+# Suicides
+
+```{r}
+
+suicides_mean <- round(mean(data_all_cases$suicides_2008, na.rm = TRUE), 1)
+
+suicides_max <- max(data_all_cases$suicides_2008, na.rm = TRUE)
+suicides_max_country <- data_all_cases$name[data_all_cases$suicides_2008 == suicides_max & !is.na(data_all_cases$suicides_2008)]
+
+
+suicides_min <- min(data_all_cases$suicides_2008, na.rm = TRUE)
+suicides_min_country <- data_all_cases$name[data_all_cases$suicides_2008 == suicides_min & !is.na(data_all_cases$suicides_2008)]
+
+
+```
+
+## Row 1 {height=25%}
+
+```{r}
+value_box(
+  title = "Average mortality of self-inflicted injuries",
+  value = suicides_mean,
+  showcase = bsicons::bs_icon("calculator"),
+  theme = value_box_theme(bg = "#CCF5AC"),
+  p(paste0("per 100k in population"))
+)
+```
+
+```{r}
+value_box(
+  title = "Highest Suicide rate",
+  value = round(suicides_max,1),
+  showcase = bsicons::bs_icon("person-bounding-box"),
+  theme = value_box_theme(bg = "#4A7BA8FF"),
+  p(paste0("(", suicides_max_country, ")"))
+)
+```
+
+```{r}
+value_box(
+  title = "Lowest Suicide rate",
+  value = round(suicides_min,1),
+  showcase = bsicons::bs_icon("feather"),
+  theme = value_box_theme(bg = "#B9DDF1FF"),
+  p(paste0("(", suicides_min_country, ")"))
+)
+```
+
+
+## Row 2 {height=75%}
+
+### {width=40%}
+
+```{r}
+barchart <- data_all_cases %>% 
+  arrange(-suicides_2008) %>% 
+  slice(1:15) %>% 
+  mutate(tooltip_label = paste(name, round(suicides_2008,0), sep = ": ")) %>% 
+  ggplot(aes(x=reorder(name, suicides_2008), y=suicides_2008, 
+             fill = suicides_2008, text=tooltip_label)) +
+  geom_col() +
+  coord_flip() +
+  guides(fill = FALSE) +
+  labs(x="", y = "Mortality due to self inflicted injury per 100'000 standard population") +
+  scale_fill_paletteer_c("ggthemes::Blue")
+  #scale_fill_gradient(low="#808A9F", high="#2C497F")
+
+
+ggplotly(barchart, tooltip = "text")
+
+
+```
+
+### {width=60%}
+
+```{r}
+
+map <- dashboard_data %>% 
+  mutate(tooltip_label = paste(name.x, round(suicides_2008,0), sep = ": ")) %>%
+  ggplot() +
+  geom_sf(aes(fill = suicides_2008, text = tooltip_label)) +
+  scale_fill_paletteer_c("ggthemes::Blue") +
+  theme_void() +
+  theme(legend.position = "none")
+
+ggplotly(map, tooltip = "text")
+
+```
+
+
+
+# Alcohol consumption
+
+```{r}
+
+alcohol_mean <- round(mean(data_all_cases$alcohol_2008, na.rm = TRUE), 1)
+
+alcohol_max <- max(data_all_cases$alcohol_2008, na.rm = TRUE)
+alcohol_max_country <- data_all_cases$name[data_all_cases$alcohol_2008 == alcohol_max & !is.na(data_all_cases$alcohol_2008)]
+
+
+alcohol_min <- min(data_all_cases$alcohol_2008, na.rm = TRUE)
+alcohol_min_country <- data_all_cases$name[data_all_cases$alcohol_2008 == alcohol_min & !is.na(data_all_cases$alcohol_2008)]
+
+
+```
+
+## Row 1 {height=25%}
+
+```{r}
+value_box(
+  title = "Average Alcohol consumption",
+  value = alcohol_mean,
+  showcase = bsicons::bs_icon("calculator"),
+  theme = value_box_theme(bg = "#C9E3AC"),
+  p(paste0("liter per adult"))
+)
+```
+
+```{r}
+value_box(
+  title = "Highest Alcohol consumption",
+  value = alcohol_max,
+  showcase = bsicons::bs_icon("hourglass-bottom"),
+  theme = value_box_theme(bg = "#D38C54FF"),
+  p(paste0("(", alcohol_max_country, ")"))
+)
+```
+
+```{r}
+value_box(
+  title = "Lowest Alcohol consumption",
+  value = alcohol_min,
+  showcase = bsicons::bs_icon("search"),
+  theme = value_box_theme(bg = "#EABE81FF"),
+  p(paste0("(", alcohol_min_country, ")"))
+)
+```
+
+
+## Row 2 {height=75%}
+
+### {width=40%}
+
+```{r}
+barchart <- data_all_cases %>% 
+  arrange(-alcohol_2008) %>% 
+  slice(1:15) %>% 
+  mutate(tooltip_label = paste(name, alcohol_2008, sep = ": ")) %>% 
+  ggplot(aes(x=reorder(name, alcohol_2008), y=alcohol_2008, fill = alcohol_2008, text=tooltip_label)) +
+  geom_col() +
+  coord_flip() +
+  guides(fill = FALSE) +
+  labs(x="", y = "Consumption of alcohol per year per capita (L)") +
+  scale_fill_paletteer_c("ggthemes::Brown")
+
+
+ggplotly(barchart, tooltip = "text")
+
+
+```
+
+### {width=60%}
+
+```{r}
+
+map <- dashboard_data %>% 
+  mutate(tooltip_label = paste(name.x, alcohol_2008, sep = ": ")) %>%
+  ggplot() +
+  geom_sf(aes(fill = alcohol_2008, text = tooltip_label)) +
+  scale_fill_paletteer_c("ggthemes::Brown") +
+  theme_void() +
+  theme(legend.position = "none")
+
+ggplotly(map, tooltip = "text")
+
+```
+
+
+# Unemployment rate
+
+```{r}
+
+unemployed_mean <- round(mean(data_all_cases$unemployment_2008, na.rm = TRUE), 1)
+
+unemployed_max <- max(data_all_cases$unemployment_2008, na.rm = TRUE)
+unemployed_max_country <- data_all_cases$name[data_all_cases$unemployment_2008 == unemployed_max & !is.na(data_all_cases$unemployment_2008)]
+
+
+unemployed_min <- min(data_all_cases$unemployment_2008, na.rm = TRUE)
+unemployed_min_country <- data_all_cases$name[data_all_cases$unemployment_2008 == unemployed_min & !is.na(data_all_cases$unemployment_2008)]
+
+
+```
+
+## Row 1 {height=25%}
+
+```{r}
+value_box(
+  title = "Mean percentage of total unemployed population",
+  value = unemployed_mean,
+  showcase = bsicons::bs_icon("person-workspace"),
+  theme = value_box_theme(bg = "#E0EFDA"),
+  p(paste0("Age group above 15 registered as unemployed"))
+)
+```
+
+```{r}
+value_box(
+  title = "Highest percentage of unemployed population",
+  value = round(unemployed_max,1),
+  showcase = bsicons::bs_icon("pc-display"),
+  theme = value_box_theme(bg = "#BE89ACFF"),
+  p(paste0("(", unemployed_max_country, ")"))
+)
+```
+
+```{r}
+value_box(
+  title = "Lowest percentage of unemployed population",
+  value = round(unemployed_min,1),
+  showcase = bsicons::bs_icon("journal-richtext"),
+  theme = value_box_theme(bg = "#E3B6D6FF"),
+  p(paste0("(", unemployed_min_country, ")"))
+)
+```
+
+
+## Row 2 {height=75%}
+
+### {width=40%}
+
+```{r}
+barchart <- data_all_cases %>% 
+  arrange(-unemployment_2008) %>% 
+  slice(1:15) %>% 
+  mutate(tooltip_label = paste(name, round(unemployment_2008,0), sep = ": ")) %>% 
+  ggplot(aes(x=reorder(name, unemployment_2008), y=unemployment_2008, 
+             fill = unemployment_2008, text=tooltip_label)) +
+  geom_col() +
+  coord_flip() +
+  guides(fill = FALSE) +
+  labs(x="", y = "Percentage of unemployed population") +
+  scale_fill_paletteer_c("ggthemes::Purple")
+
+
+ggplotly(barchart, tooltip = "text")
+
+
+```
+
+### {width=60%}
+
+```{r}
+
+map <- dashboard_data %>% 
+  mutate(tooltip_label = paste(name.x, round(unemployment_2008,0), sep = ": ")) %>%
+  ggplot() +
+  geom_sf(aes(fill = unemployment_2008, text = tooltip_label)) +
+  scale_fill_paletteer_c("ggthemes::Purple") +
+  theme_void() +
+  theme(legend.position = "none")
+
+ggplotly(map, tooltip = "text")
+
+```
+
+
+
+# Link between suicides, alcohol consumption, and unemployment rate
+
+## Row 1 {height=50%}
+
+### {width=50%}
+
+```{r}
+data_all_cases_longer <- data_all_cases %>% 
+  arrange(-suicides_2008) %>% 
+  head(10) %>% 
+  select(name, suicides_2008, alcohol_2008, unemployment_2008) %>% 
+  #filter(complete.cases(.)) %>%   # keeps only rows with no NAs
+  mutate(name = fct_reorder(name, suicides_2008)) %>% 
+  pivot_longer(!name, names_to = "variables", values_to = "value")
+
+
+data_all_cases_longer %>% 
+  mutate(variables = recode(variables,
+    "alcohol_2008" = "Alcohol consumption",
+    "suicides_2008" = "Suicides",
+    "unemployment_2008" = "Unemployment number"
+  )) %>% 
+  mutate(variables = factor(variables, levels = c(   # controls legend order
+    "Alcohol consumption",
+    "Unemployment number",
+    "Suicides"
+  ))) %>%
+  ggplot(aes(x=name, y=value, fill=variables)) +
+  geom_col(width = 0.5, position = position_dodge(0.7)) + 
+  coord_flip() +
+  labs(x="", y= "", fill="Variables", title="10 countries with the highest suicide rates") +
+  scale_fill_manual(values = c(                      # assigns colors from previous pages
+    "Suicides"             = "#4A7BA8FF",
+    "Alcohol consumption"  = "#EABE81FF",
+    "Unemployment number"  = "#E3B6D6FF"
+    )) 
+# +
+#   geom_hline(yintercept = alcohol_mean, color = "#D38C54FF", linewidth = 1) +
+#   geom_hline(yintercept = unemployed_mean, color = "#BE89ACFF", linewidth = 1)
+
+
+```
+
+### {width=50%}
+
+```{r}
+data_all_cases_longer <- data_all_cases %>% 
+  arrange(suicides_2008) %>% 
+  head(10) %>% 
+  select(name, suicides_2008, alcohol_2008, unemployment_2008) %>% 
+  #filter(complete.cases(.)) %>%   # keeps only rows with no NAs
+  mutate(name = fct_reorder(name, suicides_2008)) %>% 
+  pivot_longer(!name, names_to = "variables", values_to = "value")
+
+
+data_all_cases_longer %>% 
+  mutate(variables = recode(variables,
+    "alcohol_2008" = "Alcohol consumption",
+    "suicides_2008" = "Suicides",
+    "unemployment_2008" = "Unemployment number"
+  )) %>% 
+  mutate(variables = factor(variables, levels = c(   # controls legend order
+    "Alcohol consumption",
+    "Unemployment number",
+    "Suicides"
+  ))) %>%
+  ggplot(aes(x=name, y=value, fill=variables)) +
+  geom_col(width = 0.5, position = position_dodge(0.7)) + 
+  coord_flip() +
+  labs(x="", y= "", fill="Variables", title="10 countries with the lowest suicide rates") +
+  scale_fill_manual(values = c(                      # assigns colors from previous pages
+    "Suicides"             = "#4A7BA8FF",
+    "Alcohol consumption"  = "#EABE81FF",
+    "Unemployment number"  = "#E3B6D6FF"
+    )) 
+# +
+#   geom_hline(yintercept = alcohol_mean, color = "#D38C54FF", linewidth = 1) +
+#   geom_hline(yintercept = unemployed_mean, color = "#BE89ACFF", linewidth = 1)
+
+
+```
+
+## Row 2 {height=50%}
+
+### {width=60%}
+
+```{r}
+
+dashboard_data <- dashboard_data %>% 
+  mutate(economy = recode(economy,
+    "1. Developed region: G7" = "Developed region",
+    "2. Developed region: nonG7" = "Developed region",
+    "3. Emerging region: BRIC" = "Emerging region",
+    "4. Emerging region: MIKT" = "Emerging region",
+    "5. Emerging region: G20" = "Emerging region",
+    "6. Developing region" = "Developing region",
+    "7. Least developed region" = "Least developed region"),
+    suicides_cat = factor(
+      ifelse(suicides_2008 >= suicides_mean, "Above mondial mean", "Below mondial median")),
+    tooltip_label = paste(name.x, suicides_2008, sep = ": "))
+
+
+graph <- dashboard_data %>% 
+  ggplot(aes(x=unemployment_2008, y=alcohol_2008, color=suicides_2008, text=tooltip_label)) +
+  geom_point(size = 3) +
+  labs(x="Unemployment rate", y="Alcohol consumption") +
+  scale_color_paletteer_c("ggthemes::Blue",
+                          name="Mortality of\nsuicides\nper 100k")
+
+ggplotly(graph, tooltip = "text")
+
+```
+
+### {width=40%}
+
+This dashboard explores the visual relationship between the mortality rate of suicides per 100k, the alcohol consumption and unemployment rate per country for the year 2008.\n
+
+According to WHO, depression can cause difficulties in all aspects of life, including in the community and at home, work and school. Suicide rate is an accessible indicator of mental health, as the worst possible outcome of a depressive disorder.\n  
+Depression results from a complex interaction of social, psychological, and biological factors. We selected the unemployment rate as a potential risk factor for depression and/or a consequence for poor mental health.\n
+Alcohol consumption was hypothesized as a risk factor for depression (i.e. increasing poor physical health) but also a potential indicator of unhappiness.\n 
+
+*If you or someone you know is experiencing signs of depression, please don't face it alone — reach out for help. Depression is a treatable condition, and support is available.*
+
+
+# Data downloads
+
+The data used in this dashboard is shown below and can be downloaded as a CSV.
+
+```{r}
+gapminder_data <- data_all_cases %>% 
+  select(name, suicides_2008, alcohol_2008, unemployment_2008)
+
+htmltools::browsable(
+  tagList(
+    reactable(gapminder_data,
+      elementId = "gapminder-table",
+      searchable = TRUE,
+      filterable = TRUE),
+    
+  tags$button("Download as CSV", onclick = "Reactable.downloadDataCSV('gapminder-table')")
+  )
+)
+
+
+```
+
+
+# About
+
+## Row
+
+### {width=65%}
+
+This data is originally from the Gapminder Foundation.\n  
+Gapminder Foundation is a non-profit venture registered in Stockholm, Sweden, that promotes sustainable global development and achievement of the United Nations Millennium Development Goals by increased use and understanding of statistics and other information about social, economic, and environmental development at local, national, and global levels.\n  
+
+We used the following data:
+
+-    *Alcohol consumption in liter (L) per adult (15+)*, from the Global Health Observatory, downloaded on Gapminder website\n  
+-    *Mortality due to self inflicted injury per 100'000 standard population*, age adjusted. This rate is calculted as if all countries had the same age composition of the population. Data from the Global Health Observatory and downloaded on Gapminder website\n  
+-    *Percentage of total population, age group above 15, that has been registered as unemployed* during the given year from the ILOSTAT Database, downloaded on Gapminder website\n  
+
+
+### {width=35%}
+
+I am Anaïs Léger, a veterinary epidemiologist.\n  
+My current work focuses on the monitoring of antibiotic use in companion animals, from data quality to personalized reports to veterinarians. And yes — I will always get excited about a well-built graph!\n  
+
+More about me: https://anaisleger23.github.io/ 
