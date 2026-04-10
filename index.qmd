@@ -3,7 +3,7 @@ title: "Suicides, alcohol consumption and unemployment rate in the world, 2008"
 format: 
   dashboard:
     embed-resources: true
-theme: lux
+theme: flatly
 ---
 
 
@@ -18,7 +18,6 @@ pacman::p_load(tidyverse, here, bslib, bsicons, shiny,
 
 alcohol_data <- read.csv(here("data/alcohol_consumption_per_adult_15plus_litres.csv"))
 suicides_data <- read.csv(here("data/suicide_per_100000_people.csv"))
-work_data <- read.csv(here("data/working_hours_per_week.csv"))
 unemployment_data <- read.csv(here("data/aged_15plus_unemployment_rate_percent.csv"))
 
 
@@ -34,9 +33,6 @@ select_years <- function(data) {
   #return(data)
 }
 
-work_data_clean <- select_years(work_data) %>% 
-  rename(work_2005 = X2005,
-         work_2008 = X2008)
 suicides_data_clean <- select_years(suicides_data) %>% 
   rename(suicides_2005 = X2005,
          suicides_2008 = X2008)
@@ -54,7 +50,6 @@ unemployment_data_clean <- select_years(unemployment_data) %>%
 # setdiff(poisonings_data_clean$geo, alcohol_data_clean$geo)
 
 data_all_cases <- alcohol_data_clean %>% 
-  left_join(work_data_clean, by=c("geo", "name")) %>% 
   left_join(unemployment_data_clean, by=c("geo", "name")) %>% 
   inner_join(suicides_data_clean, by=c("geo", "name")) %>% 
   mutate(geo = toupper(geo))
@@ -171,6 +166,8 @@ ggplotly(map, tooltip = "text")
 ```
 
 
+## Row 3
+*If you or someone you know is experiencing signs of depression, please don't face it alone — reach out for help. Depression is a treatable condition, and support is available.*
 
 # Alcohol consumption
 
@@ -469,7 +466,7 @@ This dashboard explores the visual relationship between the mortality rate of su
 
 According to WHO, depression can cause difficulties in all aspects of life, including in the community and at home, work and school. Suicide rate is an accessible indicator of mental health, as the worst possible outcome of a depressive disorder.\n  
 Depression results from a complex interaction of social, psychological, and biological factors. We selected the unemployment rate as a potential risk factor for depression and/or a consequence for poor mental health.\n
-Alcohol consumption was hypothesized as a risk factor for depression (i.e. increasing poor physical health) but also a potential indicator of unhappiness.\n 
+Alcohol consumption was hypothesized as a risk factor for depression (i.e. harmful use of alcohol that can affect physical health) but also a potential indicator of unhappiness.\n 
 
 *If you or someone you know is experiencing signs of depression, please don't face it alone — reach out for help. Depression is a treatable condition, and support is available.*
 
@@ -518,4 +515,14 @@ We used the following data:
 I am Anaïs Léger, a veterinary epidemiologist.\n  
 My current work focuses on the monitoring of antibiotic use in companion animals, from data quality to personalized reports to veterinarians. And yes — I will always get excited about a well-built graph!\n  
 
-More about me: https://anaisleger23.github.io/ 
+More about me: [https://anaisleger23.github.io/](https://anaisleger23.github.io/)
+
+## Row 2
+
+Depressive disorder (also known as depression) is a common mental disorder that can unfortunately lead to suicide. There are effective treatments for depression. These include psychological treatment and medications. Seek care if you have symptoms of depression.\n
+
+More information is available on [WHO's website](https://www.who.int/news-room/fact-sheets/detail/depression)\n  
+
+Depression and self-harm/suicide are among the priority conditions covered by [WHO’s Mental Health Gap Action Programme (mhGAP)](https://www.who.int/teams/mental-health-and-substance-use/treatment-care/mental-health-gap-action-programme). The Programme aims to help countries increase services for people with mental, neurological and substance use disorders through care provided by health workers who are not specialists in mental health.\n  
+
+*If you think you are in immediate danger of harming yourself, contact any available emergency services or a crisis line.*
