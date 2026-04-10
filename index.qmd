@@ -519,9 +519,7 @@ More about me: [https://anaisleger23.github.io/](https://anaisleger23.github.io/
 
 ## Row 2
 
-Depressive disorder (also known as depression) is a common mental disorder that can unfortunately lead to suicide. There are effective treatments for depression. These include psychological treatment and medications. Seek care if you have symptoms of depression.\n
-
-More information is available on [WHO's website](https://www.who.int/news-room/fact-sheets/detail/depression)\n  
+Depressive disorder (also known as depression) is a common mental disorder that can unfortunately lead to suicide. There are effective treatments for depression. These include psychological treatment and medications. Seek care if you have symptoms of depression. More information is available on [WHO's website](https://www.who.int/news-room/fact-sheets/detail/depression)\n  
 
 Depression and self-harm/suicide are among the priority conditions covered by [WHO’s Mental Health Gap Action Programme (mhGAP)](https://www.who.int/teams/mental-health-and-substance-use/treatment-care/mental-health-gap-action-programme). The Programme aims to help countries increase services for people with mental, neurological and substance use disorders through care provided by health workers who are not specialists in mental health.\n  
 
